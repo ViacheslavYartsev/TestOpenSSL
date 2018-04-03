@@ -1,6 +1,11 @@
 #include "stdafx.h"
 #include "PrivateKey.h"
 
+#include <openssl/err.h>
+
+#include <sstream>
+#include <iomanip>
+
 struct PrivateKey::Impl {
 	~Impl() {
 		EC_KEY_free(key);
@@ -41,11 +46,38 @@ PrivateKey::PrivateKey(EC_KEY *key)
  * @brief get hex string for the PrivateKey
  */
 std::string PrivateKey::toHex() const {
-	if (p->isValid()) {
-		char * data = BN_bn2hex(p->priv_key);
-		std::string res(data);
-		OPENSSL_free(data);
-		return res;
+    if (p->isValid()) {
+        unsigned char   *ep, *pp;
+
+        const auto eplen = i2d_ECPrivateKey(p->key, NULL);
+        if (!eplen)
+        {
+            ECerr(EC_F_ECKEY_PRIV_ENCODE, ERR_R_EC_LIB);
+            return{};
+        }
+        ep = (unsigned char *)OPENSSL_malloc(eplen);
+        if (!ep)
+        {
+            ECerr(EC_F_ECKEY_PRIV_ENCODE, ERR_R_MALLOC_FAILURE);
+            return{};
+        }
+        pp = ep;
+
+        if (!i2d_ECPrivateKey(p->key, &pp))
+        {
+            OPENSSL_free(ep);
+            ECerr(EC_F_ECKEY_PRIV_ENCODE, ERR_R_EC_LIB);
+            return{};
+        }
+
+       
+        std::stringstream ss;
+        for (int i = 0; i < eplen; ++i)
+            ss << std::setfill('0') << std::setw(2) << std::hex << (unsigned int)ep[i];
+        std::string res = ss.str();
+       
+        OPENSSL_free(ep);
+        return res;
 	}
 	return{};
 }

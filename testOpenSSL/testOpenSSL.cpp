@@ -5,21 +5,22 @@
 
 #include "KeyManager.h"
 
+#include <openssl/err.h>
+
 #include <iostream>
 #include <array>
-
-#include <openssl/obj_mac.h>
-#include <openssl/ec.h>
-#include <openssl/pem.h>
-#include <openssl/ripemd.h>
-
 #include <cassert>
 #include <memory>
 #include <iomanip>
 
+//#include <openssl/evp.h>
 
-int main()
+int main(int argc, char **argv)
 {
+    OpenSSL_add_all_algorithms();
+    ERR_load_BIO_strings();
+    ERR_load_crypto_strings();
+    
 	KeyManager manager;
 	manager.generateKey();
 	const auto &privateKeyStr = manager.privateKey()->toHex();
@@ -32,9 +33,9 @@ int main()
 	if (!address.valid) {
 		std::cerr << "Couldn't get address \r\n";
 	}
-	std::cout << "Address:0x" << std::setfill('0') << std::setw(2)<< std::hex;
+	std::cout << "Address: 0x";
 	for (int i = 0; i < KeyManager::ADDRESS_LENGTH; i++) {
-		std::cout << (int)address.data[i];
+		std::cout << std::setfill('0') << std::setw(2) << std::hex << (int)address.data[i];
 	}
 	std::cout << "\r\n\r\n";
 	

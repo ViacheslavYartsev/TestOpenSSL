@@ -1,12 +1,11 @@
 #include "stdafx.h"
-
 #include "KeyManager.h"
 #include "PrivateKey.h"
 #include "PublicKey.h"
 
 #include <openssl/ec.h>
 #include <openssl/obj_mac.h>
-
+//#include "applink.c" need for openssl 1.1.x versions
 #include <iostream>
 
 /**
@@ -36,19 +35,35 @@ KeyManager::~KeyManager()
  * @brief generate new EC_KEY
  */
 void KeyManager::generateKey() {
+    
+    BIO *outbio = NULL;
+    outbio = BIO_new(BIO_s_file());
+    outbio = BIO_new_fp(stdout, BIO_NOCLOSE);
+    
 	if (p->key) {
 		EC_KEY_free(p->key);
 		p->key = nullptr;
 	}
-	p->key = EC_KEY_new_by_curve_name(NID_secp256k1);
-
-	if (!p->key) {
-		std::cerr << "couldn't generate key\r\n";
-		return;
-	}
-	if (1 != EC_KEY_generate_key(p->key)) {
-		std::cerr << "couldn't generate keys\r\n";
-	}
+    
+        const int nid = OBJ_sn2nid("secp256k1");
+        auto group = EC_GROUP_new_by_curve_name(nid);
+        EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
+        EC_GROUP_set_point_conversion_form(group, POINT_CONVERSION_UNCOMPRESSED);
+        //app_RAND_load_file(NULL, bio_err, (inrand != NULL));
+        p->key = EC_KEY_new();
+        if (!p->key) {
+            std::cerr << "couldn't create key\r\n";
+            return;
+        }
+        EC_KEY_set_group(p->key, group);
+        if (1 != EC_KEY_generate_key(p->key)) {
+            std::cerr << "couldn't generate keys\r\n";
+        }
+        /*
+        uncomment to see the key in the console
+        PEM_write_bio_ECPrivateKey(outbio, p->key, NULL,
+            NULL, 0, NULL, NULL);
+        */
 }
 
 /**
